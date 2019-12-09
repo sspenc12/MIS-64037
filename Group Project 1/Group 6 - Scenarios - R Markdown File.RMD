@@ -1,0 +1,86 @@
+---
+title: "scenario run"
+author: "srihari"
+date: "April 6, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+pd = probability of default
+lgd = loss given default
+el= expected loss
+eg = opportunity = expected gain
+amount = requested loan amount
+Expected loss = probability of default * fraction of loss(LGD) * amount 
+Opportunity = expected gain = (1-probability of default) * number of years * (interest/100) * amount
+difference=expected gain- expected loss
+approve = difference>0
+
+
+```{r}
+
+library(dplyr)
+pd<- read.csv("test_scenarios_pd.csv")
+lgd<- read.csv("Lgd_prediction.csv")
+data<- merge(pd,lgd)
+
+```
+```{r}
+#scenario-1
+
+scenario_1_el<- data %>% mutate(el= X1 * LGD_Value *requested_loan )
+scenario_1_eg<- scenario_1_el %>% mutate(eg= (1 - X1) * 5 * .042 * requested_loan)
+scenario_1_diff<- scenario_1_eg %>% mutate(difference = eg - el)
+scenario_1_result<- scenario_1_diff%>%mutate(approve = ifelse(difference >0, 1, 0))
+scenario_1_final<- scenario_1_result %>% group_by(id, requested_loan,approve)
+
+```
+```{r}
+#scenario-2:
+
+scenario_2_dec<- scenario_1_final[order(scenario_1_final$difference,decreasing = T),]
+
+cummulativesum<-cumsum(scenario_2_dec$requested_loan)
+a1<-which(cummulativesum<450000000)
+sum(scenario_2_dec$requested_loan[1:max(a1)])
+scenario_2_result<- head(scenario_2_dec,n=max(a1))
+
+f1<- scenario_2_dec[1:max(a1), ]
+f2<- scenario_2_dec[-c(1:max(a1)), ]
+
+f1$approve <- 1
+f2$approve <- 0
+p<- rbind(f1,f2)
+
+scenario_2_final<- p%>% group_by(id, requested_loan,approve)
+
+                                                                                    
+```
+
+```{r}
+#scenario-3:
+
+
+scenario_data<- read.csv("test_scenario3.csv")
+
+data$Proposed_Intrest_Rate<- scenario_data$Proposed_Intrest_Rate
+data$requested_loan_3<- scenario_data$requested_loan
+scenario_3_el<- data %>% mutate(el= X1 * LGD_Value *requested_loan_3 )
+scenario_3_eg<- scenario_3_el %>% mutate(eg= (1 - X1) * 5* Proposed_Intrest_Rate * requested_loan_3)
+scenario_3_diff<- scenario_3_eg %>% mutate(difference = eg - el)
+scenario_3_result<- scenario_3_diff%>%mutate(approve = ifelse(X1 > .20,0,1))
+scenario_3_final<- scenario_3_result %>% group_by(id, requested_loan_3,approve)
+
+
+```
+
+```{r}
+write.csv(scenario_1_final, file = "G6_S1.csv")
+write.csv(scenario_2_final, file = "G6_S2.csv")
+write.csv(scenario_3_final, file = "G6_S3.csv")
+
+
+```
+

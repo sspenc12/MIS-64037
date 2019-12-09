@@ -1,0 +1,431 @@
+---
+title: "Group 6 - Probability of Default Model - R Markdown File"
+author: 'Group 6: Steven Spence, Kareem Rogers, Srihari Kosanam, Manali Padhye, and
+  Yuqiao Xu'
+date: "4/6/2019"
+output: word_document
+---
+
+Data Exploration:
+
+```{r}
+
+# Import training data set "train_v3" for project
+
+train_v3 <- read.csv("~/Desktop/M.S. Business Analytics/Spring - 2019/MIS-64037 Advanced Data Mining and Predictive Analytics/Group Project 1/train_v3.csv")
+
+```
+
+Overview of the Data Structure:
+
+```{r}
+
+# Return structure of the training data set
+
+str(train_v3)
+
+```
+
+Insights from the data structure:
+1. All variables are numeric - 80,000 total customers/observations
+2. A total of 762 Variables + 1 Variable Describing the Default Percentage of Customers
+3. Variables are Generic in this situation (i.e. "fXXX") - blind to their true meaning
+4. "X" and "id" variables are identical and probably refer to a customer identification number
+
+Review of Missing Values:
+
+```{r}
+
+# Display the variables missing data from highest percent missing to lowest percent missing
+
+pct_col_missing <- colMeans(is.na(train_v3))
+
+min(pct_col_missing)
+max(pct_col_missing)
+
+# Return the list of column names with percentage of missing data exceeding XX%
+
+colnames(train_v3)[colMeans(is.na(train_v3)) > 0.10]
+
+```
+
+Amount of data missing from variables ranges from 0% to 17.83%.
+
+Returns list of columns that are above XX.X% missing values.
+
+```{r}
+
+# Display the rows missing data from highest percent missing to lowest percent missing
+
+pct_row_missing <- rowMeans(is.na(train_v3))
+
+min(pct_row_missing)
+max(pct_row_missing)
+
+# Return the list of row names with percentage of missing data exceeding XX%
+
+rownames(train_v3)[rowMeans(is.na(train_v3)) > 0.10]
+
+```
+
+
+Amount of data missing from customer entries range from 0% to 47.97%
+
+Returns list of rows that are above XX.X% missing values.
+
+Create Binary Variable for Defaulting Customers:
+
+```{r}
+
+# Create an additional column with "0" for no default and "1" for defaulting customers
+
+train_v3$default <- ifelse(train_v3$loss > 0, 1, 0)
+train_v3$default <- as.factor(train_v3$default)
+
+# Normaize the "loss" column by dividing the percentages by 100
+
+train_v3$loss <- (train_v3$loss / 100)
+
+```
+
+Comparison of Defaulting and Non-Defaulting Customers:
+
+```{r}
+
+require(ggplot2)
+
+# Create a bar plot of number of customers that defaulted versus not defaulted
+
+ggplot(train_v3, aes(x=factor(default))) +
+  geom_bar(stat="count", width=0.7, fill="steelblue") +
+  labs(title="Non-Defaulting Customer vs Defaulting Customers") +
+  labs(x="", y="Number of Customers") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_text(stat='count', aes(label=..count..), vjust=2)
+```
+
+Customers Paying Off Loan: 72,621 customers
+Customers Defaulting: 7,379 customers
+10.16% of customers default in given dataset
+
+```{r}
+
+# Create a subset of the data frame with only customers that have defaulted (i.e. "loss" greater than 0)
+
+train_v3_default <- subset(train_v3, train_v3$default == 1)
+
+# Create a histogram chart of customers that have defaulted and their percentage of default.
+
+require(ggplot2)
+
+ggplot(data = train_v3_default, aes(train_v3_default$loss)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 aes(fill=..count..)) +
+  labs(title="Customers that have Defaulted on Loan") +
+  labs(x="Percent of Loan Defaulted (%)", y="Count") +
+  scale_x_continuous(breaks=seq(0,100,10)) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Histogram of defaulted customers by percent of loan show us that majority of customers default around the last 25% of their loan. Nearly half of customers that default have done it with 5% of the loan left to pay.
+
+***
+
+Data Preprocessing:
+
+
+Preprocess the Training Dataset:
+
+```{r}
+
+# Create a preprocessing model that eliminates near zero variance variables, highly correlated variables, and then does the imputation of missing values with the median
+
+require(caret)
+
+preProcessModel <- preProcess(train_v3[ ,-c(763,764)], method = c("nzv", "corr", "medianImpute"))
+
+train_v3_preProcess <- predict(preProcessModel, train_v3)
+
+```
+
+This preprocess model took variables from 762 variables down to 246 variables by removing near zero variables, highly correlated variables, and imputed the median values into missing values.
+
+These values will be fed into our lasso regression model.
+
+***
+
+Lasso Regression:
+
+```{r}
+
+# Run lasso penalized regression model to determine most important variables for model
+
+require(glmnet)
+
+X <- as.matrix(train_v3_preProcess[ ,-c(247,248)])
+Y <- as.vector(as.factor(train_v3_preProcess$default))
+
+lasso_model_pd <- cv.glmnet(X, Y, alpha = 1, family = "binomial", nfolds = 10, type.measure = "auc")
+
+```
+
+```{r}
+
+require(glmnet)
+
+# Create a visual plot of the AUC values versus the log of the lamba values.
+
+plot(lasso_model_pd)
+
+# Returns the lambda minimum value
+
+lasso_model_pd$lambda.min
+
+```
+
+```{r}
+
+# Return the coefficients for the lasso regression at the minimum lambda value
+
+cv_lasso_coefs <- coef(lasso_model_pd, s = "lambda.min")
+
+# Turns the coefficient values into a data frame for processing
+
+cv_lasso_coefs <- data.frame(name = cv_lasso_coefs@Dimnames[[1]][cv_lasso_coefs@i + 1], coefficient = cv_lasso_coefs@x)
+
+# Takes the absolute value of all the coefficients in the model
+
+cv_lasso_coefs$coefficient <- abs(cv_lasso_coefs$coefficient)
+
+# Orders the data frame by decreasing value of coefficients in the data frame
+
+cv_lasso_coefs <- cv_lasso_coefs[order(cv_lasso_coefs$coefficient, decreasing = TRUE), ]
+
+# Remove the intercept from the data frame
+
+cv_lasso_coefs <- cv_lasso_coefs[-1, ]
+
+# Select the top 10 variables
+
+cv_lasso_coefs_top_10 <- cv_lasso_coefs[1:10, ]
+
+# Select the remaining variables for PCA
+
+cv_lasso_coefs_PCA_variables <- cv_lasso_coefs[11:160, ]
+
+# Turn names into a vector
+
+cv_lasso_coefs_top_10 <- as.vector(cv_lasso_coefs_top_10$name)
+cv_lasso_coefs_PCA_variables <- as.vector(cv_lasso_coefs_PCA_variables$name)
+
+# Add default to vector
+
+cv_lasso_coefs_top_10 <- c(cv_lasso_coefs_top_10,"default")
+
+
+
+```
+
+Lasso returned a total of around 180 variables as important to the default target variable.
+
+The top 10 were selected to be kept out of further analysis, the remaining variables will be ran in a PCA.
+
+Top 10 Variables by Lasso Gives Us those stored in variable "cv_lasso_coefs_top_10"
+
+
+***
+
+Principle Component Analysis:
+
+
+Create data frame with the PCA variables:
+
+```{r}
+
+require(dplyr)
+
+# Select the top important variables from the lasso variable selection process
+
+train_v3_preProcess_PCA <- select(train_v3_preProcess, cv_lasso_coefs_PCA_variables)
+
+```
+
+Principle Component Analysis:
+
+```{r}
+
+# Create a preprocessing model that eliminates near zero variance variables, highly correlated variables, and then does the imputation of missing values with the median and PCA.
+
+require(caret)
+
+preProcessModel_PCA <- preProcess(train_v3_preProcess_PCA, method = c("YeoJohnson", "center", "scale", "pca"), thresh = 0.75)
+
+train_v3_preProcess_PCA <- predict(preProcessModel_PCA, train_v3_preProcess_PCA)
+
+preProcessModel_PCA
+```
+
+45 Components were needed to capture 75 percent of the variance leftover in the variables.
+
+
+***
+
+Splitting Training and Test Data:
+
+Merge the lasso and PCA data frames together:
+
+```{r}
+
+require(dplyr)
+
+# Merge the two data frames together into a single data frame for modeling
+
+train_v3_complete <- cbind.data.frame(train_v3_preProcess_lasso, train_v3_preProcess_PCA)
+
+```
+
+Create Training and Test Data Sets:
+
+```{r}
+
+# Create training and test set that is stratified by class
+
+set.seed(404)
+
+index <- createDataPartition(train_v3_complete$default, p = 0.80, list = FALSE)
+
+train <- train_v3_complete[index, ]
+test <- train_v3_complete[-index, ]
+
+```
+
+```{r}
+# Turn "default" variable into a 0 and 1 factor variable.
+
+train$default <- as.factor(train$default)
+test$default <- as.factor(test$default)
+```
+
+***
+
+Random Forest Model:
+
+
+```{r}
+
+set.seed(404)
+
+library(randomForest)
+
+model_rf <- randomForest(default ~ ., data = train, ntree = 5, mtry = 5)
+
+print(model_rf)
+
+```
+
+```{r}
+
+require(caret)
+
+final <- data.frame(actual = test$default,
+                    predict(model_rf, newdata = test, type = "prob"))
+
+final$predict <- ifelse(final$X0 > 0.50, 0, 1)
+
+cm_original <- confusionMatrix(as.factor(final$predict), as.factor(final$actual))
+
+cm_original
+
+```
+
+```{r}
+set.seed(404)
+
+require(randomForest)
+require(ROCR)
+
+perf <- prediction(final$X1,test$default)
+
+auc <- performance(perf, "auc")
+
+pred <- performance(perf, "tpr", "fpr")
+
+plot(pred, main = "ROC Curve for Random Forest", col = 2, lwd = 2)
+abline(a=0, b=1, lwd=2, lty=2, col="gray")
+
+require(pROC)
+
+rf.roc <- roc(test$default, final$X1)
+
+plot(rf.roc)
+
+auc(rf.roc)
+
+```
+
+Model based on ntrees = 500, mtry = 5 --- AUC = 0.6334
+
+AUC Values by hypertuning:
+
+```{r}
+
+auc_values$mtry <- as.factor(auc_values$mtry)
+
+ggplot(data = auc_values, aes(x = ntree, y = AUC, group = mtry)) +
+  geom_line(aes(color = mtry)) +
+  geom_point(aes(color = mtry)) +
+  labs(title="Probability of Default AUC Values Based on ntree and mtry Tuning Parameters") +
+  labs(x="", y="AUC Value") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position = "top")
+
+```
+
+***
+
+Other Random Forest Code Attempted (Unable to Process in Timely Manner):
+
+
+```{r}
+
+require(caret)
+
+set.seed(404)
+
+# Create trainControl object
+
+myControl <- trainControl(method = "repeatedCv", number = 5, repeats = 1, summaryFunction = twoClassSummary, classProbs = TRUE, verboseIter = TRUE, allowParallel = TRUE)
+
+```
+
+```{r}
+
+require(caret)
+require(e1071)
+require(ranger)
+require(dplyr)
+
+set.seed(404)
+
+# Fit a model
+
+model_rf <- train(make.names(default) ~ ., data = train, method = "ranger", trControl = myControl)
+
+```
+
+```{r}
+
+# View results of the model
+
+model_rf
+
+# Plot the results of the model
+
+plot(model_rf)
+
+```
+
+
+

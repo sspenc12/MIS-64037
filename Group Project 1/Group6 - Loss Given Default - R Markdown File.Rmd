@@ -1,0 +1,229 @@
+---
+title: "LGD_Model"
+author: "Group 6: Steven Spence, Kareem Rogers, Srihari Kosanam, Manali Padhye, and Yuqiao Xu"
+date: "April 5, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+# Import training data set "train_v3" for project
+
+train_v3 <- read.csv("train_v3.csv")
+
+```
+
+
+Create Binary Variable for Defaulting Customers:
+
+```{r}
+
+# Create an additional column with "0" for no default and "1" for defaulting customers
+
+train_v3$default <- ifelse(train_v3$loss > 0, 1, 0)
+train_v3$default <- as.factor(train_v3$default)
+
+# Normaize the "loss" column by dividing the percentages by 100
+
+train_v3$loss <- (train_v3$loss / 100)
+
+```
+
+
+```{r}
+# Create a subset of the data frame with only customers that have defaulted (i.e. "loss" greater than 0)
+
+train_v3_default <- subset(train_v3, train_v3$default == 1)
+```
+
+```{r}
+
+# Create a preprocessing model that eliminates near zero variance variables, highly correlated variables, and then does the imputation of missing values with the median
+
+require(caret)
+
+preProcessModel <- preProcess(train_v3_default[ ,-c(763,764)], method = c("nzv", "corr", "medianImpute"))
+
+Preprocessed_default <- predict(preProcessModel, train_v3_default)
+```
+
+This preprocess model took  variables from 762 variables down to 253 variables by removing near zero variables, highly correlated variables, and imputed the median values into missing values.
+
+These values will be fed into our lasso regression model.
+
+
+
+##Loss Given Default Lasso for Variable Selection
+
+```{r}
+
+# Run lasso penalized regression model to determine most important variables for model
+
+require(glmnet)
+set.seed(1234)
+
+X2 <- as.matrix(Preprocessed_default[ ,-c(252,253)])
+Y2 <- as.vector(Preprocessed_default$loss)
+
+lasso_model_lgd <- cv.glmnet(X2, Y2, alpha = 1, family = "gaussian", nfolds = 10, type.measure = "mse")
+
+```
+
+
+```{r}
+
+require(glmnet)
+
+# Create a visual plot of the MSE values versus the log of the lamba values.
+
+plot(lasso_model_lgd)
+
+# Returns the lambda minimum value
+
+lasso_model_lgd$lambda.min
+```
+
+```{r}
+require(glmnet)
+
+# Return the coefficients for the lasso regression at the minimum lambda value
+
+cv_lasso_coefs_lgd <- coef(lasso_model_lgd, s = "lambda.min")
+
+# Turns the coefficient values into a data frame for processing
+
+cv_lasso_coefs_lgd <- data.frame(name = cv_lasso_coefs_lgd@Dimnames[[1]][cv_lasso_coefs_lgd@i + 1], coefficient = cv_lasso_coefs_lgd@x)
+
+# Remove the intercept from the data frame
+
+cv_lasso_coefs_lgd <- cv_lasso_coefs_lgd[-1, ]
+
+# Turn the names into a vector
+
+cv_lasso_coefs_lgd <- as.vector(cv_lasso_coefs_lgd$name)
+ 
+# Add "loss" variable back into the vector
+
+cv_lasso_coefs_lgd <- c(cv_lasso_coefs_lgd,"loss")
+
+```
+
+Lasso penalized regression further reduced the data set from 253 variables to 120 variables. These will be taken and entered into Ridge regression model to calculate loss given default.
+
+
+```{r}
+
+require(dplyr)
+
+# Select the important variables from the lasso variable selection process
+
+data_lgd <- select(Preprocessed_default, cv_lasso_coefs_lgd)
+
+```
+
+```{r}
+##Create Training and Test Data Sets:
+
+# 80% of the data set as the sample size
+
+smp_size <- floor(0.80 * nrow(data_lgd))
+
+# Set the seed to make your partition reproducible
+
+set.seed(300)
+
+train_ind <- sample(seq_len(nrow(data_lgd)), size = smp_size)
+
+train_lgd <- data_lgd[train_ind, ]
+test_lgd <- data_lgd[-train_ind, ]
+```
+
+
+## Ridge Regression  for loss given default rate prediction
+
+```{r}
+
+require(glmnet)
+
+X3 <- as.matrix(train_lgd[ ,-c(121)])
+Y3 <- as.vector(train_lgd$loss)
+
+ridge_model_lgd <- cv.glmnet(X3, Y3, alpha = 0, family = "gaussian", nfolds = 10, type.measure = "mae",nlambda = 100)
+
+```
+
+```{r}
+# Create a visual plot of the MAE values versus the log of the lamba values.
+
+plot(ridge_model_lgd)
+
+ridge_model_lgd$lambda.min
+
+coef <- coef(ridge_model_lgd, s = "lambda.min")
+
+```
+
+
+```{r}
+## Testing the LGD model.
+
+X4 <- as.matrix(test_lgd[ ,-c(121)])
+Y4 <- as.vector(test_lgd$loss)
+
+predicted_loss <- predict(ridge_model_lgd, s = ridge_model_lgd$lambda.min, newx = X4)
+
+## Evaluating Performance.
+
+MAE_lgd = mean(abs((predicted_loss - Y4)))
+comparison <- cbind(Y4,predicted_loss)
+
+print(MAE_lgd)
+```
+
+MAE is 0.05
+
+
+
+## Running the Model with test data.
+
+```{r}
+## Reading Test file 
+final_test <- read.csv("test_scenario1_2.csv")
+```
+
+
+```{r}
+## Precprocessing the Test file .
+
+preProcessModel_test <- preProcess(final_test[ ,-c(763,764)], method = c("medianImpute"))
+
+final_test <- predict(preProcessModel_test, final_test)
+cv_lasso_coefs_lgd_test <- cv_lasso_coefs_lgd[-121]
+final_test_lgd  <- select(final_test,cv_lasso_coefs_lgd_test)
+```
+
+
+```{r}
+## Predicting the LGD Value 
+
+final_test_lgd <- as.matrix(final_test_lgd)
+predicted_loss_test <- predict(ridge_model_lgd, s = ridge_model_lgd$lambda.min, newx = final_test_lgd )
+
+```
+
+
+```{r}
+## Converting the Prediction data to the file 
+
+predicted_loss_test <- as.data.frame(predicted_loss_test)
+Lgd_prediction <- as.data.frame(final_test_lgd)
+Lgd_prediction <- data.frame(ID = final_test$id, LGD_Value = predicted_loss_test$`1`)
+write.csv(Lgd_prediction,"Lgd_prediction.csv")
+```
+
+
+
