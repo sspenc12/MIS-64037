@@ -1,0 +1,885 @@
+---
+title: 'MIS-64037: Group Project 2'
+author: "Steve Spence, Manar Qutub, Yuqiao Xu, Choe Samba"
+date: "4/17/2019"
+output: word_document
+---
+
+```{r}
+
+# Import Training Data Set
+
+HR_Employee_Attrition_Train <- read.csv("~/Desktop/M.S. Business Analytics/Spring - 2019/MIS-64037 Advanced Data Mining and Predictive Analytics/Group Project 2/HR_Employee_Attrition_Train.csv")
+
+```
+
+```{r}
+
+# Convert Variables to Factors -- Per Clarification from Dr. Razavi
+
+HR_Employee_Attrition_Train$Education <- as.factor(HR_Employee_Attrition_Train$Education)
+HR_Employee_Attrition_Train$EnvironmentSatisfaction <- as.factor(HR_Employee_Attrition_Train$EnvironmentSatisfaction)
+HR_Employee_Attrition_Train$JobInvolvement <- as.factor(HR_Employee_Attrition_Train$JobInvolvement)
+HR_Employee_Attrition_Train$JobSatisfaction <- as.factor(HR_Employee_Attrition_Train$JobSatisfaction)
+HR_Employee_Attrition_Train$JPerformanceRating <- as.factor(HR_Employee_Attrition_Train$PerformanceRating)
+HR_Employee_Attrition_Train$JobInvolvement <- as.factor(HR_Employee_Attrition_Train$RelationshipSatisfaction)
+HR_Employee_Attrition_Train$WorkLifeBalance <- as.factor(HR_Employee_Attrition_Train$WorkLifeBalance)
+HR_Employee_Attrition_Train$StockOptionLevel <- as.factor(HR_Employee_Attrition_Train$StockOptionLevel)
+
+# Review structure of the data set
+
+str(HR_Employee_Attrition_Train)
+
+```
+
+Training Data Set Insights:
+
+1,000 observation of employees that have left or stayed with the company.
+35 Variables that have been captured to measure employee attrition.
+Target variable will be a two level factor variable named "Attrition".
+9 Total variables that are factors (varying from 1 level to 9 levels).
+26 Total variables that are integers (Of these - 7 variables converted to a factor).
+
+```{r}
+
+# Run a summary of the data set
+
+summary(HR_Employee_Attrition_Train)
+
+# Review of missing values in data set
+
+colMeans(is.na(HR_Employee_Attrition_Train))
+rowMeans(is.na(HR_Employee_Attrition_Train))
+
+```
+
+Insights from summary of the data set:
+
+There are no missing values in the data set
+"EmployeeCount" variable only consists of a single value
+"Over18" variable only consists of a single value
+"StandardHours" variable only consists of a single value
+Attrition Rate is currently at 16.7%
+
+***
+
+High Level Review of Factor Variables:
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "attrition" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$Attrition)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Attrition") +
+  labs(x="Attrition", y="Count")
+
+```
+
+Attrition Rate: 16.7%
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "BusinessTravel" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$BusinessTravel)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Business Travel") +
+  labs(x="Business Travel", y="Count")
+
+# Creates a histogram the "BusinessTravel" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$BusinessTravel)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Business Travel - Split by Attrition") +
+  labs(x="Business Travel", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "Department" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$Department)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Department") +
+  labs(x="Department", y="Count")
+
+# Creates a histogram the "Department" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$Department)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Department - Split by Attrition") +
+  labs(x="Department", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "EducationField" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$EducationField)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of EducationField") +
+  labs(x="Education Field", y="Count")
+
+# Creates a histogram the "EducationField" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$EducationField)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of EducationField - Split by Attrition") +
+  labs(x="Education Field", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "Gender" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$Gender)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Gender") +
+  labs(x="Gender", y="Count")
+
+# Creates a histogram the "Gender" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$Gender)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Gender - Split by Attrition") +
+  labs(x="Gender", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "JobRole" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$JobRole)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of JobRole") +
+  labs(x="Job Role", y="Count")
+
+# Creates a histogram the "JobRole" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$JobRole)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of JobRole - Split by Attrition") +
+  labs(x="Job Role", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "MaritalStatus" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$MaritalStatus)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of MaritalStatus") +
+  labs(x="Marital Status", y="Count")
+
+# Creates a histogram the "MaritalStatus" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$MaritalStatus)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of MaritalStatus - Split by Attrition") +
+  labs(x="Marital Status", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "OverTime" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$OverTime)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of OverTime") +
+  labs(x="Overtime", y="Count")
+
+# Creates a histogram the "OverTime" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$OverTime)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of OverTime - Split by Attrition") +
+  labs(x="Overtime", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+***
+
+High Level Review of Converted Factor Variables:
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "JPerformanceRating" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$JPerformanceRating)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of JJPerformanceRating") +
+  labs(x="Job Performance Rating", y="Count")
+
+# Creates a histogram the "JPerformanceRating" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$JPerformanceRating)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of JPerformanceRating - Split by Attrition") +
+  labs(x="Job Performance Rating", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "JobSatisfaction" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$JobSatisfaction)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of JobSatisfaction") +
+  labs(x="Job Satisfaction", y="Count")
+
+# Creates a histogram the "JobSatisfaction" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$JobSatisfaction)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of JobSatisfaction - Split by Attrition") +
+  labs(x="Job Satisfaction", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "JobInvolvement" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$JobInvolvement)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of JobInvolvement") +
+  labs(x="Job Involvement", y="Count")
+
+# Creates a histogram the "JobInvolvement" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$JobInvolvement)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of JobInvolvement - Split by Attrition") +
+  labs(x="Job Involvement", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "EnvironmentSatisfaction" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$EnvironmentSatisfaction)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of EnvironmentSatisfaction") +
+  labs(x="Environment Satisfaction", y="Count")
+
+# Creates a histogram the "EnvironmentSatisfaction" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$EnvironmentSatisfaction)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of EnvironmentSatisfaction - Split by Attrition") +
+  labs(x="Environment Satisfaction", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "Education" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$Education)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Education") +
+  labs(x="Education", y="Count")
+
+# Creates a histogram the "Education" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$Education)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Education - Split by Attrition") +
+  labs(x="Education", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "JobInvolvement" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$JobInvolvement)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Job Involvement") +
+  labs(x="Job Involvement", y="Count")
+
+# Creates a histogram the "JobInvolvement" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$JobInvolvement)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Job Involvement - Split by Attrition") +
+  labs(x="Job Involvement", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "WorkLifeBalance" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$WorkLifeBalance)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Work Life Balance") +
+  labs(x="Work Life Balance", y="Count")
+
+# Creates a histogram the "WorkLifeBalance" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$WorkLifeBalance)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Work Life Balance - Split by Attrition") +
+  labs(x="Work Life Balance", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "StockOptionLevel" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$StockOptionLevel)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Stock Option Level") +
+  labs(x="Stock Option Level", y="Count")
+
+# Creates a histogram the "Stock Option Level" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$StockOptionLevel)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 binwidth = 0.04,
+                 stat = "count") +
+  labs(title="Histogram of Stock Option Level - Split by Attrition") +
+  labs(x="Stock Option Level", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+***
+
+High Level Review of Numeric Variables:
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "Age" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$Age)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Age") +
+  labs(x="Age", y="Count")
+
+# Creates a histogram the "Age" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$Age)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Age - Split by Attrition") +
+  labs(x="Age", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "DailyRate" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$DailyRate)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Daily Rate") +
+  labs(x="Daily Rate ($)", y="Count")
+
+# Creates a histogram the "DailyRate" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$DailyRate)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Daily Rate - Split by Attrition") +
+  labs(x="Daily Rate ($)", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+require(bestNormalize)
+
+# Creates a histogram the "DistanceFromHome" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$DistanceFromHome)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Distance From Home") +
+  labs(x="Distance from Home", y="Count")
+
+# Creates a histogram the "DistanceFromHome" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$DistanceFromHome)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Distance From Home - Split by Attrition") +
+  labs(x="Distance from Home", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "HourlyRate" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$HourlyRate)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Hourly Rate") +
+  labs(x="Hourly Rate", y="Count")
+
+# Creates a histogram the "HourlyRate" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$HourlyRate)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Hourly Rate - Split by Attrition") +
+  labs(x="Hourly Rate", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "MonthlyIncome" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$MonthlyIncome)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Monthly Income") +
+  labs(x="Monthly Income", y="Count")
+
+# Creates a histogram the "MonthlyIncome" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$MonthlyIncome)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Monthly Income - Split by Attrition") +
+  labs(x="Monthly Income", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "MonthlyRate" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$MonthlyRate)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Monthly Rate") +
+  labs(x="Monthly Rate", y="Count")
+
+# Creates a histogram the "MonthlyRate" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$MonthlyRate)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Monthly Rate - Split by Attrition") +
+  labs(x="Monthly Rate", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "MNumCompaniesWorked" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$NumCompaniesWorked)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Number of Companies Worked For") +
+  labs(x="Number of Companies", y="Count")
+
+# Creates a histogram the "NumCompaniesWorked" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$NumCompaniesWorked)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Number of Companies Worked For - Split by Attrition") +
+  labs(x="Number of Companies", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "PercentSalaryHike" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$PercentSalaryHike)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Percent Salary Hike") +
+  labs(x="Percent Salary Hike", y="Count")
+
+# Creates a histogram the "PercentSalaryHike" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$PercentSalaryHike)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Percent Salary Hike - Split by Attrition") +
+  labs(x="Percent Salary Hike", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "TotalWorkingYears" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$TotalWorkingYears)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Total Working Years") +
+  labs(x="Total Working Years", y="Count")
+
+# Creates a histogram the "TotalWorkingYears" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$TotalWorkingYears)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Total Working Years - Split by Attrition") +
+  labs(x="Total Working Years", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "TrainingTimesLastYear" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$TrainingTimesLastYear)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Training Times Last Year") +
+  labs(x="Training Times Last Year", y="Count")
+
+# Creates a histogram the "TrainingTimesLastYear" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$TrainingTimesLastYear)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Training Times Last Year - Split by Attrition") +
+  labs(x="Training Times Last Year", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "YearsAtCompany" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$YearsAtCompany)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Years at Company") +
+  labs(x="Years at Company", y="Count")
+
+# Creates a histogram the "YearsAtCompany" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$YearsAtCompany)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Years at Company - Split by Attrition") +
+  labs(x="Years at Company", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "YearsInCurrentRole" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$YearsInCurrentRole)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Years in Current Role") +
+  labs(x="Years in Current Role", y="Count")
+
+# Creates a histogram the "YearsInCurrentRole" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$YearsInCurrentRole)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Years in Current Role - Split by Attrition") +
+  labs(x="Years In Current Role", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "YearsSinceLastPromotion" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$YearsSinceLastPromotion)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Years Since Last Promotion") +
+  labs(x="Years Since Last Promotion", y="Count")
+
+# Creates a histogram the "YearsSinceLastPromotion" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$YearsSinceLastPromotion)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Years Since Last Promotion - Split by Attrition") +
+  labs(x="Years Since Last Promotion", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+
+
+```{r}
+
+require(ggplot2)
+
+# Creates a histogram the "YearsWithCurrManager" variable column
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$YearsWithCurrManager)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Years with Current Manager") +
+  labs(x="Years with Current Manager", y="Count")
+
+# Creates a histogram the "YearsWithCurrManager" variable column, split up by attrition values
+
+ggplot(data = HR_Employee_Attrition_Train, aes(HR_Employee_Attrition_Train$YearsWithCurrManager)) +
+  geom_histogram(col="black",
+                 alpha=0.8) +
+  labs(title="Histogram of Years with Current Manager - Split by Attrition") +
+  labs(x="Years with Current Manager", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+ggplot(data = HR_Employee_Attrition_Train, aes(x = Attrition, y = YearsWithCurrManager)) +
+  geom_boxplot(col="black",
+                 alpha=0.8) +
+  labs(title="Boxplot of Years with Current Manager - Split by Attrition") +
+  labs(x="Years with Current Manager", y="Count") +
+  facet_wrap(vars(HR_Employee_Attrition_Train$Attrition))
+
+```
+***
+
+Attempt at Histogram for All Variables:
+
+```{r}
+
+require(ggplot2)
+require(purrr)
+require(tidyr)
+require(dplyr)
+require(magrittr)
+require(reshape2)
+
+ggplot(data = melt(HR_Employee_Attrition_Train), mapping = aes(x = value)) +
+  geom_histogram() +
+  facet_wrap(~ variable, scales = "free_x")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

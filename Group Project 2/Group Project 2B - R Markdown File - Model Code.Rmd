@@ -1,0 +1,258 @@
+ 
+#-----Data reading
+```{r}
+library(lda)
+library(psych)
+library(MASS)
+library(devtools)
+library(caret)
+library(pROC)
+library(mlbench)
+library(ggplot2)
+library(e1071)
+library(rpart)
+library(randomForest)
+library(keras)
+library(dplyr)
+
+```
+
+
+```{r}
+
+HR_Employee_Attrition_Train <- read_csv("HR-Employee-Attrition_Train.csv")
+HR_Employee_Attrition_Test <- read_csv("HR-Employee-Attrition_Test.csv")
+
+Traindata <- HR_Employee_Attrition_Train
+Testdata <- HR_Employee_Attrition_Test
+
+```
+
+#-----Preparing Data
+
+```{r}
+char_to_factors <- c(
+  "Attrition",
+  "BusinessTravel",
+  "Department",
+  "EducationField",
+  "Gender",
+  "JobRole",
+  "MaritalStatus",
+  "Over18",
+  "OverTime"
+)
+char_to_factors
+
+Traindata <- Traindata %>% mutate_at(char_to_factors, factor)
+Traindata %>% summary()
+
+```
+```{r}
+char_to_factors <- c(
+  "BusinessTravel",
+  "Department",
+  "EducationField",
+  "Gender",
+  "JobRole",
+  "MaritalStatus",
+  "Over18",
+  "OverTime"
+)
+char_to_factors
+
+Testdata <- Testdata %>% mutate_at(char_to_factors, factor)
+Testdata %>% summary()
+```
+
+
+#-----Removing lower variance variables
+
+```{r}
+NZV<- nearZeroVar(Traindata, saveMetrics = TRUE)
+NZV[NZV[,"zeroVar"] > 0, ] 
+NZV[NZV[,"zeroVar"] + NZV[,"nzv"] > 0, ]
+
+features_to_rm <- c(
+  "EmployeeCount", 
+  "Over18",
+  "StandardHours"
+)
+features_to_rm
+
+Traindata <- Traindata %>% select(-features_to_rm)
+Testdata <- Testdata %>% select(-features_to_rm)
+```
+
+
+#-----Spliting Training data into train and test
+
+```{r}
+set.seed(100)
+ind<-sample(2,nrow(Traindata),
+            replace=T,
+            prob=c(.8,.2))
+training<-Traindata[ind==1,]
+testing<-Traindata[ind==2,]
+```
+
+##Random Forest Model##
+
+```{r}
+set.seed(100)
+model1training<-randomForest(Attrition~.,data=training)
+model1training
+```
+
+##Random Forest Accuracy##
+
+```{r}
+##Accuracy on training subset
+t9<-sum(diag(model1training$confusion))/sum(model1training$confusion)
+t9
+##on the testing set
+p7<-predict(model1training,newdata=testing)
+tab6<-table(predicted=p7,Actual=testing$Attrition)
+t10<-sum(diag(tab6))/sum(tab6)
+tab6
+t10
+```
+
+#-----Logistic regression Model on Training subset
+
+
+```{r}
+Logistic_Model_Training <- glm(Attrition ~ BusinessTravel +
+                                 DistanceFromHome +
+                                 EnvironmentSatisfaction +
+                                 JobInvolvement +
+                                 JobSatisfaction +
+                                 NumCompaniesWorked +
+                                 OverTime , family = "binomial", data = training)
+summary(Logistic_Model_Training)
+```
+
+##---- Accuracy
+
+```{r}
+
+##on training
+
+pred<-predict(Logistic_Model_Training,newdata = training, type="response")
+pred<-ifelse(pred>0.5,1,0)
+pred
+
+pred<-ordered(pred,levels=c(0,1))
+table1=table(actual=training$Attrition,predicted=pred)
+t0 <- sum(diag(table1))/sum(table1)
+t0
+
+## on testing subset
+
+pred<-predict(Logistic_Model_Training,newdata = testing, type="response")
+pred
+
+pred<-ifelse(pred>0.5,1,0)
+pred
+
+pred<-ordered(pred,levels=c(0,1))
+table1=table(actual=testing$Attrition,predicted=pred)
+ta <- sum(diag(table1))/sum(table1)
+ta
+
+```
+
+#--------LDA 
+#--------Highest Accuracy
+
+```{r}
+
+linear<-lda(Attrition~.,data=training)
+linear 
+
+```
+
+#--------Accuracy
+
+```{r}
+##on the training data
+p1<-predict(linear,training)$class
+tab<-table(Predicted=p1,Actual=training$Attrition)
+t1<-sum(diag(tab))/sum(tab)
+t1
+##on the testing data
+p2<-predict(linear,testing)$class
+tab1<-table(Predicted=p2,Actual=testing$Attrition)
+t2<-sum(diag(tab1))/sum(tab1)
+t2
+
+```
+
+
+#--------SVM 
+
+```{r}
+
+set.seed(100)
+model3<-svm(Attrition~.,data=training)
+summary(model3)
+
+##Accuracy
+#on training set
+p4<-predict(model3,newdata=training)
+tab2<-table(predicted=p4,Actual=training$Attrition)
+t5<-sum(diag(tab2))/sum(tab2)
+t5
+#on testing set
+p5<-predict(model3,newdata=testing)
+tab3<-table(predicted=p5,Actual=testing$Attrition)
+t6<-sum(diag(tab3))/sum(tab3)
+tab3
+t6
+
+```
+
+#--------Comparing model Accuracies
+
+```{r}
+
+on_Training_set<-c(t9,t0,t1,t5)
+on_Testing_set<-c(t10,ta,t2,t6)
+Model<-c("Random Forest","GLM","LDA","SVM")
+data.frame(Model,on_Training_set,on_Testing_set)
+```
+
+##Applying LDA model on the original Testing File After deciding it was the most accurate model to consider
+
+
+```{r}
+Pred_Test<- predict(linear, newdata=Testdata)
+Employee_Attrition<-table(Predicted=Pred_Test$class)
+Employee_Attrition
+
+summary(Employee_Attrition)
+```
+```{r}
+barplot(Employee_Attrition)
+```
+
+
+```{r}
+Testdata$Attrition <- ifelse(Pred_Test$class=="Yes",1,0)
+View(Testdata$Attrition)
+
+
+write.csv(Testdata$Attrition, file = 'Project2_Results_HR.csv')
+
+```
+
+## Deep into the model
+```{r}
+
+pred<-predict(linear,newdata = Testdata, type="response")
+pred
+summary(pred)
+```
+
+
+
