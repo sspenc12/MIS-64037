@@ -1,0 +1,329 @@
+---
+title: 'MIS-64037: Individual Assignment #1'
+author: "Steven Spence"
+date: "2/22/2019"
+output: word_document
+---
+
+SafeBabies is a large company who is producing car seats for babies and toddlers. They sell their products all over the US and abroad. The management team has hired you as a Business Analytics consultant to help them maximizing their profit. 
+
+Your primary task is to determine:
+1. The optimal price for selling the car seats at those stores where the shelve location is good (i.e. the product is highly visible)?
+2. The optimal price for selling the car seats at those stores where the shelve location is bad (i.e. the product is highly visible)?
+
+You have been told that the cost of producing each car seat is $55.0 
+
+3. Plot the optimal price for selling the car seats at those stores where the shelve location is good and those where the shelve location is bad when varying the production costs from $40 to $85.
+
+```{r}
+
+set.seed(1000)
+
+# Imports a subset of the Carseats dataframe from the ISLR library
+# Where:
+# "Sales" is the unit sales (in thousands) at each location
+# "Price" is the price that the company charges for each car seat
+# "ShelveLoc" indicate the shelving location of the car seat at each store (Factor w/ levels "Bad", "Good", and "Medium")
+
+require(ISLR)
+
+# Create subset data frames for each type of shelving location
+
+SafeBabies <- Carseats[ , c("Sales", "Price", "ShelveLoc")]
+SafeBabies$Cost <- 55
+SafeBabies$Sales_1K <- SafeBabies$Sales*1000
+SafeBabies$Profit_Per_Unit <- SafeBabies$Price - SafeBabies$Cost
+SafeBabies$Total_Profit <- SafeBabies$Sales * SafeBabies$Profit_Per_Unit
+SafeBabies_Good <- subset(SafeBabies, ShelveLoc == "Good")
+SafeBabies_Bad <- subset(SafeBabies, ShelveLoc == "Bad")
+SafeBabies_Medium <- subset(SafeBabies, ShelveLoc == "Medium")
+
+```
+
+Problem Statement:
+
+The company would like to maximize their profit by optimizing their price based on shelf locations of their products around the world.
+
+There we need to determine the price sensitivity of customers based on shelf location at various stores with historic data provided.
+
+Once we know the relationship between price and sales, then we can find the optimum price, as well as plotting out optimum prices at various levels of manufacturing costs.
+
+***
+
+Reivew of Data Presented by Company:
+
+```{r}
+
+# Summarize "SafeBabies" dataframe to review high level statistics for 400 stores
+
+summary(SafeBabies)
+
+```
+
+***
+
+Visual Analysis of Data Presented:
+
+Company Sales:
+
+```{r}
+
+# Create a histogram for the "Sales" variable
+
+require(ggplot2)
+
+ggplot(data=SafeBabies, aes(SafeBabies$Sales)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 aes(fill=..count..),
+                 binwidth = 1) +
+  labs(title="Histogram of Sales (Units) for SafeBabies, Inc.") +
+  labs(x="Unit Sales (in thousands)", y="Count") +
+  guides(fill=FALSE)
+
+# Create a histogram for the "Sales" variable, split by the shelf location
+
+require(ggplot2)
+
+ggplot(data=SafeBabies, aes(SafeBabies$Sales)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 aes(fill=..count..),
+                 binwidth = 1) +
+  labs(title="Histogram of Sales (Units) for SafeBabies, Inc., Split by Shelf Location") +
+  labs(x="Unit Sales (in thousands)", y="Count") +
+  guides(fill=FALSE) +
+  facet_wrap(vars(SafeBabies$ShelveLoc))
+
+# Create a scatter plot for the "Sales" variable versus "Price" variable.
+
+require(ggplot2)
+
+ggplot(data=SafeBabies, aes(x = SafeBabies$Price)) +
+  geom_point(aes(y= SafeBabies$Sales)) +
+  labs(title="Scatter Plot of Sales (Units) for SafeBabies, Inc.") +
+  labs(x="Price (USD)", y="Sales (in thousands")
+
+# Create a scatter plot for the "Sales" variable versus "Price" variable, split by shelf location.
+
+require(ggplot2)
+
+ggplot(data=SafeBabies, aes(x = SafeBabies$Price)) +
+  geom_point(aes(y= SafeBabies$Sales)) +
+  labs(title="Scatter Plot of Sales (Units) for SafeBabies, Inc.") +
+  labs(x="Price (USD)", y="Sales (in thousands") +
+  facet_wrap(vars(SafeBabies$ShelveLoc))
+
+```
+
+Review of the "Sales" charts we can state:
+
+1. The data appears to be normally distributed
+2. There appears to be a negative correlation between price and sales. Increasing price will result in less sales - as expected.
+
+Total Profit:
+
+```{r}
+# Create a histogram for the "Total_Profit" variable
+
+require(ggplot2)
+
+ggplot(data=SafeBabies, aes(SafeBabies$Total_Profit)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 aes(fill=..count..),
+                 binwidth = 50) +
+  labs(title="Histogram of Total Profit (Dollars) for SafeBabies, Inc.") +
+  labs(x="Total Profit (in thousands $)", y="Count") +
+  guides(fill=FALSE)
+
+# Create a histogram for the "Total_Profit" variable, split by the shelf location
+
+require(ggplot2)
+
+ggplot(data=SafeBabies, aes(SafeBabies$Total_Profit)) +
+  geom_histogram(col="black",
+                 alpha=0.8,
+                 aes(fill=..count..),
+                 binwidth = 50) +
+  labs(title="Histogram of Total Profit (Dollars) for SafeBabies, Inc., Split by Shelf Location") +
+  labs(x="Total Profit (in thousands $)", y="Count") +
+  guides(fill=FALSE) +
+  facet_wrap(vars(SafeBabies$ShelveLoc))
+
+# Create a scatter plot for the "Total_Profit" variable versus "Price" variable.
+
+require(ggplot2)
+
+ggplot(data=SafeBabies, aes(x = SafeBabies$Price)) +
+  geom_point(aes(y= SafeBabies$Total_Profit)) +
+  labs(title="Scatter Plot of Total Profit (Dollars) for SafeBabies, Inc.") +
+  labs(x="Price (USD)", y="Profit (in thousands $")
+
+# Create a scatter plot for the "Total_Profit" variable versus "Price" variable, split by shelf location.
+
+require(ggplot2)
+
+ggplot(data=SafeBabies, aes(x = SafeBabies$Price)) +
+  geom_point(aes(y= SafeBabies$Total_Profit)) +
+  labs(title="Scatter Plot of Total Profit (Dollars) for SafeBabies, Inc.") +
+  labs(x="Price (USD)", y="Profit (in thousands $") +
+  facet_wrap(vars(SafeBabies$ShelveLoc))
+```
+
+***
+
+Simple Linear Models - Good and Bad:
+
+```{r}
+
+# Create simple linear model for good shelf location to get a baseline for the values.
+
+lm_model_good <- lm(Sales_1K ~ Price, data = SafeBabies_Good)
+summary(lm_model_good)
+
+```
+
+
+```{r}
+
+# Create simple linear model for bad shelf location to get a baseline for the values.
+
+lm_model_bad <- lm(Sales_1K ~ Price, data = SafeBabies_Bad)
+summary(lm_model_bad)
+
+```
+
+Linear Regression for Good Shelf Location:
+
+From this simple linear regression, we can see that the b0 (intercept) value was found to be 17968.864 and the b1 (price coefficient) was found to be -65.785.
+
+Linear Regression for Bad Shelf Location:
+
+From this simple linear regression, we can see that the b0 (intercept) value was found to be 11832.984 and the b1 (price coefficient) was found to be -55.220.
+
+From the historic data, it is shown that there is a smaller drop in sales for every dollar increase at a bad shelf location compared to a good shelf location.
+
+We can further improve this model by using a ridge and/or lasso method.
+
+***
+
+Generalized Linear Regression Models - Good and Bad:
+
+```{r}
+
+# Cross validated linear regression model via lasso for the good shelf location
+
+require(glmnet)
+
+glm_model_good <- cv.glmnet(x = cbind(0,SafeBabies_Good$Price), y = SafeBabies_Good$Sales_1K, alpha = 1, nlambda = 100)
+
+coef(glm_model_good, s = "lambda.min")
+
+```
+
+```{r}
+
+# Cross validated linear regression model via lasso for the bad shelf location
+
+require(glmnet)
+
+glm_model_bad <- cv.glmnet(x = cbind(0,SafeBabies_Bad$Price), y = SafeBabies_Bad$Sales_1K, alpha = 1, nlambda = 100)
+
+coef(glm_model_bad, s = "lambda.min")
+
+```
+
+The improved values for the model coefficient for good and bad are:
+
+Good shelf location: -64.87373
+Bad shelf location: -54.82154
+
+***
+
+Optimum Price for Good Shelving Location Stores:
+
+We can use the previously gathered coefficient values to solve the following equation for optimum values:
+
+Total Profit= (price – cost) * (b1*price+b0) = b1*price^2+(b0 -cost*b1)*price-cost*b0
+
+When we plug the values in for good shelf location, the equation is:
+
+b0_good is 17968.864
+b1_good is -64.87373
+
+Therefore,
+
+-64.87373*price^2 + 21536.92*price - 988287.5
+
+Taking the derivative will give the following equation:
+
+-129.7475*price + 21536.92
+
+Setting the derivative equal to zero and solving for "price" will give us the optimal value in this situation. As a result, the optimum price for stores with a good shelf location will be:
+
+Optimum Price for Good Shelf Location: $165.99
+
+***
+
+Optimum Price for Bad Shelving Location Stores:
+
+We can use the previously gathered coefficient values to solve the following equation for optimum values:
+
+Total Profit= (price – cost) * (b1*price+b0) = b1*price^2+(b0 -cost*b1)*price-cost*b0
+
+When we plug the values in for good shelf location, the equation is:
+
+b0_bad is 11832.984
+b1_bad is -54.82154
+
+Therefore,
+
+-54.82154*price^2 + 14848.17*price - 650814.1
+
+Taking the derivative will give the following equation:
+
+-109.64308*price + 14848.17
+
+Setting the derivative equal to zero and solving for "price" will give us the optimal value in this situation. As a result, the optimum price for stores with a bad shelf location will be:
+
+Optimum Price for Bad Shelf Location: $135.42
+
+***
+
+Plots of Optimum Price by Varying Costs:
+
+Good Shelf Location:
+
+```{r}
+
+# Use the derivative equation from before to substitute in all values between $40 and $85
+
+b0_good <- 17968.864
+b1_good <- -64.87373
+costs <- seq(from = 40, to = 85, by = 0.01)
+
+optimum_prices_good <- (-(b0_good - costs * b1_good)) / (2*b1_good)
+
+plot(costs, optimum_prices_good, xlab = "Cost to Manufacture ($)", ylab = "Optimum Price ($)", main = "Optimum Selling Prices for Good Shelf Location")
+
+```
+
+Bad Shelf Location:
+
+```{r}
+
+# Use the derivative equation from before to substitute in all values between $40 and $85
+
+b0_bad <- 11832.984
+b1_bad <- -54.82154
+costs <- seq(from = 40, to = 85, by = 0.01)
+
+optimum_prices_bad <- (-(b0_bad - costs * b1_bad)) / (2*b1_bad)
+
+plot(costs, optimum_prices_bad, xlab = "Cost to Manufacture ($)", ylab = "Optimum Price ($)", main = "Optimum Selling Prices for Bad Shelf Location")
+
+```
+
+
+
